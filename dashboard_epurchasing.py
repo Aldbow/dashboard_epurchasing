@@ -122,13 +122,12 @@ if 'nama_paket' in df_filtered.columns:
     top5_paket = top5_paket.nlargest(5, 'pagu').sort_values('pagu', ascending=True)
     top5_paket['pagu_formatted'] = top5_paket['pagu'].apply(format_rupiah)
     
-    # Membuat label 2 baris agar rapi (Baris 1: Nama Paket, Baris 2: Nama Satker)
+    # Membuat label 2 baris (Baris 1: Nama Paket terpotong, Baris 2: Nama Satker utuh/full)
     def create_label(row):
         paket = str(row['nama_paket'])
         satker = str(row['nama_satker'])
         paket_trunc = (paket[:45] + '...') if len(paket) > 45 else paket
-        satker_trunc = (satker[:30] + '...') if len(satker) > 30 else satker
-        return f"{paket_trunc}<br><i>({satker_trunc})</i>"
+        return f"{paket_trunc}<br><i>({satker})</i>"
         
     top5_paket['nama_paket_label'] = top5_paket.apply(create_label, axis=1)
     
