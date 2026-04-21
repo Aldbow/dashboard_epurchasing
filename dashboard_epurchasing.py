@@ -72,83 +72,70 @@ def format_rupiah(x):
 
 # --- SIDEBAR (FILTER) ---
 st.sidebar.header("🎛️ Filter Panel")
+
+# Filter Tahun
+if 'tahun_anggaran' in df.columns:
+    tahun_list = ["Semua Tahun"] + sorted(df['tahun_anggaran'].dropna().unique().tolist(), reverse=True)
+    selected_tahun = st.sidebar.selectbox("Filter berdasarkan Tahun:", tahun_list)
+else:
+    selected_tahun = "Semua Tahun"
+
+# Filter Satker
 satker_list = ["Semua Satker"] + sorted(df['nama_satker'].dropna().unique().tolist())
 selected_satker = st.sidebar.selectbox("Filter berdasarkan Satuan Kerja:", satker_list)
 
 # Proses filter data
+df_filtered = df.copy()
+
+if selected_tahun != "Semua Tahun":
+    df_filtered = df_filtered[df_filtered['tahun_anggaran'] == selected_tahun]
+
 if selected_satker != "Semua Satker":
-    df_filtered = df[df['nama_satker'] == selected_satker]
-else:
-    df_filtered = df
+    df_filtered = df_filtered[df_filtered['nama_satker'] == selected_satker]
 
 # Metric Scorecards (Highlight atas)
 st.markdown("---")
-kpi1, kpi2, kpi3 = st.columns(3)
+kpi1, kpi2, kpi3, kpi4 = st.columns(4)
 kpi1.metric(label="Total Pagu (Anggaran)", value=f"Rp {df_filtered['pagu'].sum():,.0f}")
 kpi2.metric(label="Total Realisasi", value=f"Rp {df_filtered['Total Realisasi'].sum():,.0f}")
 serapan_persen = (df_filtered['Total Realisasi'].sum() / df_filtered['pagu'].sum() * 100) if df_filtered['pagu'].sum() > 0 else 0
 kpi3.metric(label="Persentase Serapan", value=f"{serapan_persen:.2f} %")
+jumlah_paket = df_filtered['nama_paket'].nunique() if 'nama_paket' in df_filtered.columns else len(df_filtered)
+kpi4.metric(label="Jumlah Paket", value=f"{jumlah_paket:,.0f}".replace(",", "."))
 st.markdown("---")
 
-# --- ROW 1: Chart 1 & Chart 2 ---
-col1, col2 = st.columns(2)
+# --- ROW 1: Chart Top 5 Paket ---
+# Chart 1 (Pagu vs Realisasi) dihapuskan sesuai permintaan
+st.markdown("---")
+st.subheader("1. Top 5 Pagu dengan Paket Pagu Tertinggi")
 
-# 1. Perbandingan Pagu vs Realisasi
-with col1:
-    st.subheader("1. Pagu vs Realisasi")
-    st.markdown("Membandingkan jumlah pagu/anggaran dengan total nilai realisasi.")
+if 'nama_paket' in df_filtered.columns:
+    st.markdown("5 Nama Paket pengadaan dengan nilai alokasi anggaran terbesar.")
+    top5_paket = df_filtered.groupby('nama_paket')['pagu'].sum().nlargest(5).sort_values(ascending=True).reset_index()
+    top5_paket['pagu_formatted'] = top5_paket['pagu'].apply(format_rupiah)
     
-    if selected_satker == "Semua Satker":
-        # Jika semua satker, tunjukkan bar bertingkat (Top 10 satker secara default)
-        df_vs = df_filtered.groupby('nama_satker')[['pagu', 'Total Realisasi']].sum().nlargest(10, 'pagu').reset_index()
-        fig1 = go.Figure(data=[
-            go.Bar(name='Pagu', x=df_vs['nama_satker'], y=df_vs['pagu'], marker_color='#93c47d'),
-            go.Bar(name='Realisasi', x=df_vs['nama_satker'], y=df_vs['Total Realisasi'], marker_color='#38761d')
-        ])
-        fig1.update_layout(
-            barmode='group', 
-            xaxis_title="Top 10 Satker", 
-            yaxis_title="Nilai (Rp)",
-            plot_bgcolor='rgba(0,0,0,0)',
-            margin=dict(l=20, r=20, t=30, b=20)
-        )
-        st.plotly_chart(fig1, use_container_width=True)
-    else:
-        # Jika satu satker dipilih, buat chart bar satuan
-        total_pagu = df_filtered['pagu'].sum()
-        total_real = df_filtered['Total Realisasi'].sum()
-        fig1 = go.Figure(data=[
-            go.Bar(name='Pagu', x=['Total Anggaran'], y=[total_pagu], marker_color='#93c47d', width=0.4),
-            go.Bar(name='Realisasi', x=['Total Realisasi'], y=[total_real], marker_color='#38761d', width=0.4)
-        ])
-        fig1.update_layout(plot_bgcolor='rgba(0,0,0,0)')
-        st.plotly_chart(fig1, use_container_width=True)
-
-# 2. Top 5 Satker Berdasarkan Pagu
-with col2:
-    st.subheader("2. Top 5 Satker (Pagu Tertinggi)")
-    if selected_satker == "Semua Satker":
-        st.markdown("5 Satuan Kerja dengan alokasi anggaran terbesar.")
-        top5_satker = df_filtered.groupby('nama_satker')['pagu'].sum().nlargest(5).sort_values(ascending=True).reset_index()
-        top5_satker['pagu_formatted'] = top5_satker['pagu'].apply(format_rupiah)
-        
-        # Horizontal Bar Chart
-        fig2 = px.bar(top5_satker, x='pagu', y='nama_satker', orientation='h',
-                      text='pagu_formatted', color_discrete_sequence=['#5b9bd5'])
-        fig2.update_traces(textfont_size=12, textangle=0, textposition="outside")
-        fig2.update_layout(
-            plot_bgcolor='rgba(0,0,0,0)',
-            xaxis_title="Alokasi Pagu (Rp)", 
-            yaxis_title="(Berdasarkan Terbesar)",
-            margin=dict(l=20, r=20, t=30, b=40)
-        )
-        st.plotly_chart(fig2, use_container_width=True)
-    else:
-        st.info(f"Opsi Top 5 tidak relevan karena Anda sedang memfilter 1 Satker spesifik ({selected_satker}).")
+    # Memotong string nama paket jika terlalu panjang agar sumbu Y tetap rapi
+    top5_paket['nama_paket_label'] = top5_paket['nama_paket'].apply(lambda x: str(x)[:50] + "..." if len(str(x)) > 50 else str(x))
+    
+    # Horizontal Bar Chart
+    fig2 = px.bar(top5_paket, x='pagu', y='nama_paket_label', orientation='h',
+                  text='pagu_formatted', color_discrete_sequence=['#5b9bd5'],
+                  hover_data={'nama_paket': True, 'nama_paket_label': False})
+                  
+    fig2.update_traces(textfont_size=12, textangle=0, textposition="outside")
+    fig2.update_layout(
+        plot_bgcolor='rgba(0,0,0,0)',
+        xaxis_title="Alokasi Pagu (Rp)", 
+        yaxis_title="",
+        margin=dict(l=20, r=20, t=30, b=40)
+    )
+    st.plotly_chart(fig2, use_container_width=True)
+else:
+    st.warning("Kolom 'nama_paket' tidak tersedia dalam data.")
 
 # --- KOMPOSISI IDENTIFIKASI ---
 st.markdown("---")
-st.subheader("3. Komposisi Identifikasi Pembelian")
+st.subheader("2. Komposisi Identifikasi Pembelian")
 
 if 'Identifikasi' in df_filtered.columns:
     st.markdown("Proporsi serapan divisualisasikan dengan **Treemap** (kotak besar = nilai serapan tinggi) agar mudah memuat banyak tipe identifikasi.")
@@ -197,7 +184,7 @@ else:
 
 # --- PEMBELIAN BERULANG ---
 st.markdown("---")
-st.subheader("4. Analisis Pembelian Berulang")
+st.subheader("3. Analisis Pembelian Berulang")
 st.markdown("Daftar Identifikasi/Item yang dibeli **lebih dari 1 kali**.")
 
 # Kontrol khusus untuk memilih satker di panel Analisis Pembelian Berulang
