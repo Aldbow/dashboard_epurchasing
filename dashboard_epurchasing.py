@@ -106,7 +106,7 @@ st.markdown("---")
 
 # --- ROW 1: Chart Top 5 Paket ---
 # Chart 1 (Pagu vs Realisasi) dihapuskan sesuai permintaan
-st.markdown("---")
+# st.markdown("---")
 st.subheader("1. Top 5 Pagu dengan Paket Pagu Tertinggi")
 
 if 'nama_paket' in df_filtered.columns:
@@ -202,12 +202,20 @@ else:
 # Kolom utama untuk deteksi item repetitive
 ident_col = 'Identifikasi' if 'Identifikasi' in df_rep_target.columns else 'nama_paket'
 
-# Menghitung Frekuensi Pembelian
-df_rep = df_rep_target.groupby(['nama_satker', ident_col]).size().reset_index(name='Frekuensi Transaksi')
-df_rep_nilai = df_rep_target.groupby(['nama_satker', ident_col])['Total Realisasi'].sum().reset_index()
+# Menyusun kolom untuk grouping
+group_cols = ['nama_satker']
+if 'jenis_pengadaan' in df_rep_target.columns:
+    group_cols.append('jenis_pengadaan')
+if 'Jenis Belanja' in df_rep_target.columns:
+    group_cols.append('Jenis Belanja')
+group_cols.append(ident_col)
 
-# Gabung data frekuensi & nilai
-df_rep_final = pd.merge(df_rep, df_rep_nilai, on=['nama_satker', ident_col])
+# Menghitung Frekuensi Pembelian berdasarkan grouping yang lebih detail
+df_rep = df_rep_target.groupby(group_cols).size().reset_index(name='Frekuensi Transaksi')
+df_rep_nilai = df_rep_target.groupby(group_cols)['pagu'].sum().reset_index()
+
+# Gabung data frekuensi & nilai (menggunakan pagu bukan realisasi)
+df_rep_final = pd.merge(df_rep, df_rep_nilai, on=group_cols)
 
 # FILTER: Hanya tampilkan yang dibeli LEBIH DARI 1 KALI
 df_rep_final = df_rep_final[df_rep_final['Frekuensi Transaksi'] > 1]
@@ -215,22 +223,24 @@ df_rep_final = df_rep_final.sort_values(by='Frekuensi Transaksi', ascending=Fals
 
 if not df_rep_final.empty:
     # Terapkan format Nominal Uang dengan cara menukar koma (ribuan dari Python) menjadi titik gaya Indonesia
-    # Contoh: Rp 1,500,000 -> Rp 1.500.000
-    df_rep_final['Total Nilai (Rp)'] = df_rep_final['Total Realisasi'].apply(
+    df_rep_final['Total Pagu (Rp)'] = df_rep_final['pagu'].apply(
         lambda x: f"Rp {x:,.0f}".replace(",", ".")
     )
     
+    # Siapkan kolom yang akan ditampilkan
+    display_cols = group_cols + ['Frekuensi Transaksi', 'Total Pagu (Rp)']
+    
     # Tampilkan DataFrame dengan opsi custom styling pada Streamlit
     st.dataframe(
-        df_rep_final[['nama_satker', ident_col, 'Frekuensi Transaksi', 'Total Nilai (Rp)']],
+        df_rep_final[display_cols],
         use_container_width=True,
         column_config={
             'Frekuensi Transaksi': st.column_config.ProgressColumn(
                 "Frekuensi", help="Total pengulangan pembelian",
                 format="%f", min_value=0, max_value=int(df_rep_final['Frekuensi Transaksi'].max())
             ),
-            'Total Nilai (Rp)': st.column_config.TextColumn(
-                "Total Realisasi"
+            'Total Pagu (Rp)': st.column_config.TextColumn(
+                "Total Pagu"
             )
         },
         height=400,
