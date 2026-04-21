@@ -122,12 +122,12 @@ if 'nama_paket' in df_filtered.columns:
     top5_paket = top5_paket.nlargest(5, 'pagu').sort_values('pagu', ascending=True)
     top5_paket['pagu_formatted'] = top5_paket['pagu'].apply(format_rupiah)
     
-    # Membuat label 2 baris (Baris 1: Nama Paket terpotong, Baris 2: Nama Satker utuh/full)
+    # Membuat label 2 baris (Keduanya dibiarkan utuh tanpa dipotong)
     def create_label(row):
         paket = str(row['nama_paket'])
         satker = str(row['nama_satker'])
-        paket_trunc = (paket[:45] + '...') if len(paket) > 45 else paket
-        return f"{paket_trunc}<br><i>({satker})</i>"
+        # Tampilkan teks secara utuh tanpa ada pemotongan panjang karakter
+        return f"{paket}<br><i>({satker})</i>"
         
     top5_paket['nama_paket_label'] = top5_paket.apply(create_label, axis=1)
     
