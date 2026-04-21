@@ -138,19 +138,9 @@ if 'nama_paket' in df_filtered.columns:
                   
     fig2.update_traces(textfont_size=12, textangle=0, textposition="outside")
     
-    # Kustomisasi Sumbu X agar dalam Bahasa Indonesia (menggunakan format_rupiah agar tidak muncul B untuk Billion)
-    max_pagu = top5_paket['pagu'].max()
-    pagu_tickvals = [0, max_pagu*0.25, max_pagu*0.5, max_pagu*0.75, max_pagu] if max_pagu > 0 else []
-    pagu_ticktext = [format_rupiah(val) for val in pagu_tickvals]
-    
     fig2.update_layout(
         plot_bgcolor='rgba(0,0,0,0)',
-        xaxis=dict(
-            title="Alokasi Pagu",
-            tickmode='array',
-            tickvals=pagu_tickvals,
-            ticktext=pagu_ticktext
-        ),
+        xaxis_title="Alokasi Pagu (Rp)", 
         yaxis_title="",
         margin=dict(l=20, r=20, t=30, b=40)
     )
