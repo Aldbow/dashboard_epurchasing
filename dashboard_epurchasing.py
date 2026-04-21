@@ -110,17 +110,32 @@ st.markdown("---")
 st.subheader("1. Top 5 Pagu dengan Paket Pagu Tertinggi")
 
 if 'nama_paket' in df_filtered.columns:
-    st.markdown("5 Nama Paket pengadaan dengan nilai alokasi anggaran terbesar.")
-    top5_paket = df_filtered.groupby('nama_paket')['pagu'].sum().nlargest(5).sort_values(ascending=True).reset_index()
+    st.markdown("5 Nama Paket pengadaan dengan nilai alokasi anggaran terbesar beserta Satuan Kerjanya.")
+    
+    # Kumpulkan berdasarkan paket dan satker
+    if 'nama_satker' in df_filtered.columns:
+        top5_paket = df_filtered.groupby(['nama_satker', 'nama_paket'])['pagu'].sum().reset_index()
+    else:
+        top5_paket = df_filtered.groupby('nama_paket')['pagu'].sum().reset_index()
+        top5_paket['nama_satker'] = "Tidak diketahui"
+        
+    top5_paket = top5_paket.nlargest(5, 'pagu').sort_values('pagu', ascending=True)
     top5_paket['pagu_formatted'] = top5_paket['pagu'].apply(format_rupiah)
     
-    # Memotong string nama paket jika terlalu panjang agar sumbu Y tetap rapi
-    top5_paket['nama_paket_label'] = top5_paket['nama_paket'].apply(lambda x: str(x)[:50] + "..." if len(str(x)) > 50 else str(x))
+    # Membuat label 2 baris agar rapi (Baris 1: Nama Paket, Baris 2: Nama Satker)
+    def create_label(row):
+        paket = str(row['nama_paket'])
+        satker = str(row['nama_satker'])
+        paket_trunc = (paket[:45] + '...') if len(paket) > 45 else paket
+        satker_trunc = (satker[:30] + '...') if len(satker) > 30 else satker
+        return f"{paket_trunc}<br><i>({satker_trunc})</i>"
+        
+    top5_paket['nama_paket_label'] = top5_paket.apply(create_label, axis=1)
     
     # Horizontal Bar Chart
     fig2 = px.bar(top5_paket, x='pagu', y='nama_paket_label', orientation='h',
                   text='pagu_formatted', color_discrete_sequence=['#5b9bd5'],
-                  hover_data={'nama_paket': True, 'nama_paket_label': False})
+                  hover_data={'nama_paket': True, 'nama_satker': True, 'nama_paket_label': False})
                   
     fig2.update_traces(textfont_size=12, textangle=0, textposition="outside")
     fig2.update_layout(
